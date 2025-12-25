@@ -1,8 +1,8 @@
-version: "3.9"
+version: "3.8"
 
 services:
   db:
-    image: registry.cn-hangzhou.aliyuncs.com/library/postgres:15
+    image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/postgres:15
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -13,28 +13,30 @@ services:
       - "5432:5432"
 
   redis:
-    image: registry.cn-hangzhou.aliyuncs.com/library/redis:7
+    build:
+      context: .
+      dockerfile: infra/redis/Dockerfile
     ports:
       - "6379:6379"
 
   minio:
-    image: minio/minio
-    command: server /data --console-address ":9001"
+    image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/minio/minio:latest
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
     ports:
       - "9000:9000"
       - "9001:9001"
-    volumes:
-      - minio_data:/data
 
   backend:
-    build: ./backend
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    env_file: .env
-    volumes:
-      - ./backend:/app
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
     depends_on:
       - db
       - redis
@@ -43,15 +45,17 @@ services:
       - "8000:8000"
 
   worker:
-    build: ./backend
-    command: celery -A app.tasks.demo worker -l info
-    env_file: .env
-    volumes:
-      - ./backend:/app
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
     depends_on:
+      - db
       - redis
-      - backend
+      - minio
 
 volumes:
   db_data:
   minio_data:
+
