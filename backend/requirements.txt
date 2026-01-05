@@ -10,3 +10,6 @@ python-multipart
 minio
 celery
 redis
+python-jose[cryptography]
+passlib[bcrypt]
+email-validator
